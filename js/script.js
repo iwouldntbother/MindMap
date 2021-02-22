@@ -1,6 +1,7 @@
 // Global Variables
 
-const canvas = document.getElementById("mainCanvas")
+const canvas = document.getElementById("mainCanvas");
+const engine = new BABYLON.Engine(canvas, true);
 
 // Inital Setup
 
@@ -15,6 +16,16 @@ const createScene = () => {
 
     const box = BABYLON.MeshBuilder.CreateBox("box", {});
 
-    return scene
+    return scene;
 }
 
+const scene = createScene();
+
+engine.runRenderLoop(function () {
+    scene.render();
+});
+
+
+window.addEventListener("resize", function () {
+    engine.resize();
+});
