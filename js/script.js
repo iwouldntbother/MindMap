@@ -64,6 +64,11 @@
         let bottomJoystickOffset = -50;
         let translateTransform;
 
+    
+    var pickable = [];
+    var pickedUp;
+    var pickedUpCameraDiff = new BABYLON.Vector3();
+
     function init(){
 
     console.log("Started loading")
@@ -109,21 +114,23 @@
 
     var light1 = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(1, 1, 1), scene);
     light1.intensity = 1;
-    camera = new BABYLON.UniversalCamera("FreeCamera", new BABYLON.Vector3(0,10,0), scene);
-    camera.speed = 3;
+    camera = new BABYLON.UniversalCamera("FreeCamera", new BABYLON.Vector3(0,12,0), scene);
+    camera.speed = 4;
     camera.inertia = 0.7;
-    camera.setTarget(new BABYLON.Vector3(0,8,0));
+    camera.setTarget(new BABYLON.Vector3(0,6,0));
     camera.keysUp.push(87);
     camera.keysDown.push(83);
     camera.keysLeft.push(65);
     camera.keysRight.push(68);
     camera._needMoveForGravity = true;
     camera.minZ = 0.01;
+    
 
-    scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
+
+    scene.gravity = new BABYLON.Vector3(0, -0.75, 0);
     scene.shadowsEnabled = true;
     camera.applyGravity = true;
-    camera.ellipsoid = new BABYLON.Vector3(0.25,4,0.25);
+    camera.ellipsoid = new BABYLON.Vector3(0.25,5,0.25);
     scene.collisionsEnabled = true;
     camera.checkCollisions = true;
     camera.rotationQuaternion = new BABYLON.Quaternion();
@@ -133,14 +140,8 @@
 
     var gl = new BABYLON.GlowLayer("glow", scene);
     gl.intensity = 0.5;
+    
 
-    var pickable = [];
-    var pickedUp;
-    var pickedUpCameraDiff = new BABYLON.Vector3();
-
-    scene.enablePhysics(null, new BABYLON.CannonJSPlugin());
-
-    var PhysicsImpostorParameters = {mass: 1}
 
     galleryMesh = BABYLON.SceneLoader.ImportMesh("", "models/", "MindMapTwo.glb", scene, function(meshes){
 
@@ -153,20 +154,14 @@
                     item.checkCollisions = true;
                 if(item.name.includes("Ramp") || item.name.includes("Barrier")){
                     item.material = invisMat;
-                }else if(item.name.includes("Slope")){
+                }else if(item.name.includes("Slope") || item.name.includes("DoorFrame")){
                     item.checkCollisions = false;
                 } else if (item.name.includes("Coob")) {
                     pickable.push(item.name);
-                    // item.scaling = new BABYLON.Vector3(1,1,1)
-                    item.setParent(null);
                     item.scaling.x = Math.abs(item.scaling.x)
                     item.scaling.y = Math.abs(item.scaling.y)
                     item.scaling.z = Math.abs(item.scaling.z)
                     item.position = new BABYLON.Vector3(0,0,0)
-                    item.physicsImpostor = new BABYLON.PhysicsImpostor(item, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0.1 }, scene);
-                } else if (item.name.includes("Floor")) {
-                    item.setParent(null);
-                    item.physicsImpostor = new BABYLON.PhysicsImpostor(item, BABYLON.PhysicsImpostor.BoxImpostor, {mass: 0}, scene);
                 }
             
 
@@ -226,17 +221,28 @@
     document.addEventListener("mozpointerlockchange", pointerlockchange, false);
     document.addEventListener("webkitpointerlockchange", pointerlockchange, false);
 
+    crouching = false;
+
     document.addEventListener("keydown", function(evnt){
         if(isLocked){
-            if(evnt.keyCode === 82){
+            if(evnt.code === "KeyR"){
                 camera.position = new BABYLON.Vector3(0,10,0);
-                camera.setTarget = new BABYLON.Vector3(0,8,0);
+                camera.setTarget = new BABYLON.Vector3(0,10,0);
                 camera.rotation.x = 0;
                 camera.rotation.y = 7;
             }
 
-            if(evnt.keyCode === 16){
-                camera.speed = 6;
+            if(evnt.code === "ShiftLeft"){
+                camera.speed = 8;
+            }
+
+            if(evnt.code === "ControlLeft" && !crouching){
+                camera.ellipsoid = new BABYLON.Vector3(0.25,2.5,0.25);
+                crouching = true;
+            } else if (evnt.code === "ControlLeft" && crouching) {
+                crouching = false;
+                camera.position.y += 4;
+                camera.ellipsoid = new BABYLON.Vector3(0.25,5,0.25);
             }
             
         }
@@ -244,8 +250,8 @@
 
     document.addEventListener("keyup", function(evnt){
         if(isLocked){
-            if(evnt.keyCode === 16){
-                camera.speed = 3;
+            if(evnt.code === "LeftShift"){
+                camera.speed = 4;
             }
         }
     });
@@ -257,16 +263,12 @@
             var pickResult = scene.pick(window.innerWidth/2, window.innerHeight/2);
 
             if (e.which == 3 && pickResult.hit && pickable.includes(pickResult.pickedMesh.name) && !pickedUp) {
-                // document.exitPointerLock();
-                // pieceDisplay(pickResult.pickedMesh.name);
                 console.log("Picked!")
                 pickedUp = pickResult.pickedMesh;
                 pickedUpCameraDiff = camera.position.subtract(pickedUp.position);
-                pickResult.pickedMesh.physicsImpostor.setParam("mass", 0);
             } else if (e.which == 3 && pickResult.hit && pickable.includes(pickResult.pickedMesh.name)) {
                 console.log("Dropped!")
                 pickedUp = null;
-                pickResult.pickedMesh.physicsImpostor.setParam("mass", 0.1);
                 pickedUpCameraDiff = new BABYLON.Vector3();
             }
 
@@ -294,26 +296,12 @@
 
             pickedUp.position.set(-(camera.position.x + rotationVector.x), camera.position.y + rotationVector.y, camera.position.z + rotationVector.z);
 
-            rayScale();
 
         }
         
 
     }); 
 
-    function rayScale() {
-        
-        pickedUp.isPickable = false;
-
-        var scaleRay = new BABYLON.Ray(camera.position, camera.getTarget(), 100);
-
-        var hit = scene.pickWithRay(scaleRay);
-        var scaleQ = hit.distance / 8;
-        pickedUp.scaling = new BABYLON.Vector3(scaleQ, scaleQ, scaleQ)
-        // console.log(hit.distance + scaleQ)
-        distFromCam = hit.distance - scaleQ;
-        pickedUp.isPickable = true;
-    }
 
     function multiplyQuaternionByVector(quaternion, vector){
         var target = new BABYLON.Vector3();
@@ -345,11 +333,11 @@
     scene.executeWhenReady(function(){
         document.getElementById("loadingScreen").style.display = "none";
         console.log("Done Loading");
-        scene.freeActiveMeshes()
+        // scene.freeActiveMeshes()
         scene.cleanCachedTextureBuffer();
 
-        camera.position = new BABYLON.Vector3(0,10,0);
-        camera.setTarget = new BABYLON.Vector3(0,8,0);
+        camera.position = new BABYLON.Vector3(0,8,0);
+        camera.setTarget = new BABYLON.Vector3(0,6,0);
         camera.rotation.x = 0;
         camera.rotation.y = 7;
 
@@ -383,38 +371,9 @@
     engine.runRenderLoop(function(){
         if(readyToRender){
             fpsText.text = engine.getFps().toFixed() + " fps";
-            // if(camera.position.y < 0){
-            //     camera.position = new BABYLON.Vector3(-40,8,-89);
-            //     camera.setTarget = new BABYLON.Vector3(0,8,0);
-            //     camera.rotation.x = 0;
-            //     camera.rotation.y = 7;
-            // }
-            
-            
 
-            var frustumPlanes = BABYLON.Frustum.GetPlanes(camera.getTransformationMatrix());
+            // var frustumPlanes = BABYLON.Frustum.GetPlanes(camera.getTransformationMatrix());
         
-            videoElements.forEach(function(item){
-            
-            
-            if(readyToPlay){
-                
-                if(item[1].isInFrustum(frustumPlanes) && checkVisible(item[1])){
-                    if(!item[2]){
-                        item[0].video.play();
-                        item[2] = true;
-                        //console.log("Playing "+item[1].name)
-                    }
-                }else{
-                    if(item[2]){
-                        item[0].video.pause();
-                        item[2] = false;
-                        //console.log("Pausing "+item[1].name)
-                    }
-                }
-                
-            }
-        })
             
             scene.render();
         }
