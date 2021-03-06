@@ -8,63 +8,33 @@
     var isLocked = false;
     var canvas = document.getElementById("mainCanvas")
     var engine = new BABYLON.Engine(canvas, false, {doNotHandleContextLos: true});
-    var floorNo = "Ground Floor"
     var camera;
     engine.enableOfflineSupport = false;
     var available = ['-dxt.ktx'];
     // engine.setTextureFormatToUse(available);
 
-    // Menu Variables //
-
-    var pieceDisplayed = false;
-    var listData = [];
 
     // Mesh Loading Variables //
 
-    var videoElements = [];
-    var soundCreated = false;
-    var rootMesh;
-    var loadVideo = true;
     var readyToPlay = false;
-    var noDrank = 0;
     var readyToRender = false;
 
 
-    // if (screen.width <= 699) {
-
-    //     document.getElementById("mobileSupport").style.display = "flex";
-    //     setTimeout(function(){window.stop(); engine.dispose();}, 500)
-
+    if (screen.width <= 699) {
+        document.getElementById("mobileSupport").style.display = "flex";
+        setTimeout(function(){window.stop(); engine.dispose();}, 500)
+    }
 
 
     initialised = true;
     init()
     setTimeout(function(){readyToRender = true;},1000)
 
-
-
-    var rotateArrow = mainOBJ.getElementById("mapDot").parentNode.createSVGTransform();
-    rotateArrow.setRotate(0, 20, 25)
-    mainOBJ.getElementById("mapDot").transform.baseVal.appendItem(rotateArrow);
-
-    var translateArrow = mainOBJ.getElementById("mapDot").parentNode.createSVGTransform();    
-    translateArrow.setTranslate(0, 0)
-    mainOBJ.getElementById("mapDot").transform.baseVal.appendItem(translateArrow);
-
     var pieces = [];
     var pieceData;
 
     var scene;
 
-    let xAddPos = 0;
-        let yAddPos = 0;
-        let xAddRot = 0;
-        let yAddRot = 0;
-        let sideJoystickOffset = 150;
-        let bottomJoystickOffset = -50;
-        let translateTransform;
-
-    
     var pickable = [];
     var pickedUp;
     var pickedUpCameraDiff = new BABYLON.Vector3();
@@ -73,9 +43,6 @@
 
     console.log("Started loading")
     scene = new BABYLON.Scene(engine);
-
-
-
 
     var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("myUI");
 
@@ -127,10 +94,10 @@
     
 
 
-    scene.gravity = new BABYLON.Vector3(0, -0.75, 0);
+    scene.gravity = new BABYLON.Vector3(0, -9.81, 0);
     scene.shadowsEnabled = true;
     camera.applyGravity = true;
-    camera.ellipsoid = new BABYLON.Vector3(0.25,5,0.25);
+    camera.ellipsoid = new BABYLON.Vector3(0.5,5,0.5);
     scene.collisionsEnabled = true;
     camera.checkCollisions = true;
     camera.rotationQuaternion = new BABYLON.Quaternion();
@@ -138,16 +105,24 @@
     invisMat = new BABYLON.StandardMaterial("invisMat", scene);
     invisMat.alpha = 0;
 
-    var gl = new BABYLON.GlowLayer("glow", scene);
-    gl.intensity = 0.5;
+    // var gl = new BABYLON.GlowLayer("glow", scene);
+    // gl.intensity = 0.5;
     
+    var whiteMat = new BABYLON.StandardMaterial("whiteMat", scene)
+    whiteMat.emissiveColor = new BABYLON.Color3.White();
+    // whiteMat.specularColor = new BABYLON.Color3.White();
 
+    var redMat = new BABYLON.StandardMaterial("redMat", scene)
+    redMat.emissiveColor = new BABYLON.Color3.Red();
 
     galleryMesh = BABYLON.SceneLoader.ImportMesh("", "models/", "MindMapTwo.glb", scene, function(meshes){
 
         meshes.forEach(function(item){
 
-                
+                    item.renderOutline = true;
+                    item.outlineWidth = 0.25;
+                    item.outlineColor = BABYLON.Color3.Black();       
+                    item.material = whiteMat;         
 
                     item.doNotSyncBoundingInfo = true;
                     item.alwaysSelectAsActiveMesh = true
@@ -162,6 +137,12 @@
                     item.scaling.y = Math.abs(item.scaling.y)
                     item.scaling.z = Math.abs(item.scaling.z)
                     item.position = new BABYLON.Vector3(0,0,0)
+                } else if (item.name.includes("Noose")) {
+                    item.checkCollisions = false;
+                } else if (item.name.includes("MazeWalls") || item.name.includes("DoorBlock")) {
+                    item.material = invisMat;
+                } else if (item.name.includes("Isolated")) {
+                    item.material = redMat;
                 }
             
 
@@ -198,21 +179,18 @@
         if (!controlEnabled) {
             camera.detachControl(canvas);
 
-            if(!pieceDisplayed && !shopDisplayed){
-                loadPauseMenu();
-            }
+            
+            loadPauseMenu();
+            
 
             setTimeout(function(){isLocked = false;},200);
             document.getElementById("menu").style.display = "";
             document.getElementById("helpText").innerHTML = "Click anywhere to close";
         } else {
-            pieceDisplayed = false;
-            shopDisplayed = false;
             camera.attachControl(canvas);
             setTimeout(function(){isLocked = true;},200);
             document.getElementById("menu").style.display = "none";
             document.getElementById("helpText").innerHTML = "Press ESC to bring up the map";
-
         }
     };
 
@@ -239,10 +217,12 @@
             if(evnt.code === "ControlLeft" && !crouching){
                 camera.ellipsoid = new BABYLON.Vector3(0.25,2.5,0.25);
                 crouching = true;
+                scene.getMeshByName("DoorBlock").checkCollisions = false;
             } else if (evnt.code === "ControlLeft" && crouching) {
                 crouching = false;
                 camera.position.y += 4;
                 camera.ellipsoid = new BABYLON.Vector3(0.25,5,0.25);
+                scene.getMeshByName("DoorBlock").checkCollisions = true;
             }
             
         }
@@ -280,22 +260,18 @@
     var distFromCam = 8;
     
     scene.registerBeforeRender(function(){
-        translateTransform = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(xAddPos/3000, 0, yAddPos/3000), BABYLON.Matrix.RotationY(camera.rotation.y));
-        camera.cameraDirection.addInPlace(translateTransform);
-        camera.cameraRotation.y += xAddRot/15000*-1;
-        camera.cameraRotation.x += yAddRot/15000*-1;
+        // translateTransform = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(xAddPos/3000, 0, yAddPos/3000), BABYLON.Matrix.RotationY(camera.rotation.y));
+        // camera.cameraDirection.addInPlace(translateTransform);
+        // camera.cameraRotation.y += xAddRot/15000*-1;
+        // camera.cameraRotation.x += yAddRot/15000*-1;
 
         if (pickedUp) {
-            // pickedUp.position.x = -(camera.position.x - pickedUpCameraDiff.x)
-            // pickedUp.position.y = (camera.position.y - pickedUpCameraDiff.y)
-            // pickedUp.position.z = (camera.position.z - pickedUpCameraDiff.z)
 
             var cameraQuaternion = camera.rotationQuaternion.clone();
             var directionVector = new BABYLON.Vector3(0,0,distFromCam);
             var rotationVector = multiplyQuaternionByVector(cameraQuaternion, directionVector);
 
             pickedUp.position.set(-(camera.position.x + rotationVector.x), camera.position.y + rotationVector.y, camera.position.z + rotationVector.z);
-
 
         }
         
@@ -333,7 +309,7 @@
     scene.executeWhenReady(function(){
         document.getElementById("loadingScreen").style.display = "none";
         console.log("Done Loading");
-        // scene.freeActiveMeshes()
+        scene.freeActiveMeshes()
         scene.cleanCachedTextureBuffer();
 
         camera.position = new BABYLON.Vector3(0,8,0);
@@ -389,101 +365,14 @@
         var title = document.getElementById("title");
         var name = document.getElementById("name");
         var about = document.getElementById("about");
-        var mainOBJ = document.getElementById("mainOBJ");
+        // var mainOBJ = document.getElementById("mainOBJ");
 
-        document.getElementById("container").style.height = "90vh";
-
-
-        title.innerHTML = "Map";
-        
-        about.innerHTML = "The red dot is where you are now & the blue dots represent work on display on this floor"
-        
-        mainOBJ.style.display = "block"
-
-        floorNo = checkFloor(camera);
-        name.innerHTML = floorNo;
-        
-        posX = scene.cameras[0].position.x;
-        posY = scene.cameras[0].position.z;
-
-        newPoint = locToPoint(posX,posY)
-        //mainOBJ.getElementById("mapDot").setAttribute("cx", newPoint.x)
-        // mainOBJ.getElementById("mapDot").setAttribute("cy", newPoint.y)
-
-        // Map Arrow //
-        mainOBJ.getElementById("mapDot").transform.baseVal.getItem(0).setTranslate(newPoint.x-20, newPoint.y-25)
-        mainOBJ.getElementById("mapDot").transform.baseVal.getItem(1).setRotate(Number(camera.rotation.y) * (180 / Math.PI), 20, 25)
-        
-
-        mainOBJ.getElementById("artworkDotHolder").innerHTML = "";
-
-        listData.forEach(function(item, itemIndex){
-            if(item[3].includes(floorNo)){
-                document.getElementById(item[0]).getElementsByClassName("pieceFloor")[0].style.color = "green";
-                item[5] = true;
-                document.getElementById(item[0]).style.pointerEvents = "all";
-
-                var artPosX = item[4].absolutePosition.x;
-                var artPosY = item[4].absolutePosition.z;
-                var artNewPoint = locToPoint(artPosX,artPosY)
-
-                mainOBJ.getElementById("artworkDotHolder").innerHTML += '<circle id="artworkDot'+itemIndex+'" fill="#4287f5" cx="'+artNewPoint.x+'" cy="'+artNewPoint.y+'" r="15"/>'
-            }else{
-                document.getElementById(item[0]).getElementsByClassName("pieceFloor")[0].style.color = "grey";
-                item[5] = false;
-                document.getElementById(item[0]).style.pointerEvents = "none";
-            }
-        })
-    }
+        // document.getElementById("container").style.height = "90vh";
 
 
-    function locToPoint(oldValueX, oldValueY){
-        oldMinX = -64.4;
-        oldMaxX = 147.6;
-        oldMinY = -116.5;
-        oldMaxY = 96.1;
-        
-        newMinX = 2048;
-        newMaxX = 0;
-        newMinY = 0;
-        newMaxY = 2048;
-
-        newValues = {x:0, y:0}
-        newValues.x = ((((oldValueX-oldMinX)*(newMaxX-newMinX))/(oldMaxX-oldMinX)+newMinX));
-        newValues.y = ((((oldValueY-oldMinY)*(newMaxY-newMinY))/(oldMaxY-oldMinY)+newMinY));
-
-        return newValues;
-    }
-
-    function checkFloor(object) {
-        var heightPos = object.position.y;
-
-        if(heightPos<16){
-            document.getElementById("floor0").style.display = "inline";
-            document.getElementById("floor1").style.display = "none";
-            document.getElementById("floor2").style.display = "none";
-            document.getElementById("floor3").style.display = "none";
-            return "Ground Floor";
-        }else if(heightPos>16 && heightPos<33){
-            document.getElementById("floor0").style.display = "none";
-            document.getElementById("floor1").style.display = "inline";
-            document.getElementById("floor2").style.display = "none";
-            document.getElementById("floor3").style.display = "none";
-            return "First Floor";
-        }else if(heightPos>33 && heightPos<51){
-            document.getElementById("floor0").style.display = "none";
-            document.getElementById("floor1").style.display = "none";
-            document.getElementById("floor2").style.display = "inline";
-            document.getElementById("floor3").style.display = "none";
-            return "Second Floor";
-        }else if(heightPos>51 && heightPos<68){
-            document.getElementById("floor0").style.display = "none";
-            document.getElementById("floor1").style.display = "none";
-            document.getElementById("floor2").style.display = "none";
-            document.getElementById("floor3").style.display = "inline";
-            return "Third Floor";
-        }
-
+        title.innerHTML = "Paused.";
+        name.innerHTML = "This experience covers very real and intense topics.";
+        about.innerHTML = "Please close this tab if you are at all uncomfortable.";
     }
 
 
