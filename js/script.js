@@ -141,7 +141,9 @@
                     item.checkCollisions = false;
                 } else if (item.name.includes("MazeWalls") || item.name.includes("DoorBlock")) {
                     item.material = invisMat;
-                } else if (item.name.includes("Isolated")) {
+                } 
+                
+                if (item.name.includes("Isolated")) {
                     item.material = redMat;
                 }
             
@@ -214,11 +216,11 @@
                 camera.speed = 8;
             }
 
-            if(evnt.code === "ControlLeft" && !crouching){
+            if(evnt.code === "KeyF" && !crouching){
                 camera.ellipsoid = new BABYLON.Vector3(0.25,2.5,0.25);
                 crouching = true;
                 scene.getMeshByName("DoorBlock").checkCollisions = false;
-            } else if (evnt.code === "ControlLeft" && crouching) {
+            } else if (evnt.code === "KeyF" && crouching) {
                 crouching = false;
                 camera.position.y += 4;
                 camera.ellipsoid = new BABYLON.Vector3(0.25,5,0.25);
@@ -230,7 +232,7 @@
 
     document.addEventListener("keyup", function(evnt){
         if(isLocked){
-            if(evnt.code === "LeftShift"){
+            if(evnt.code === "ShiftLeft"){
                 camera.speed = 4;
             }
         }
