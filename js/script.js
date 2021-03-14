@@ -39,6 +39,8 @@
     var pickedUp;
     var pickedUpCameraDiff = new BABYLON.Vector3();
 
+    footstepsPaused = true;
+
     function init(){
 
     console.log("Started loading")
@@ -101,6 +103,13 @@
     scene.collisionsEnabled = true;
     camera.checkCollisions = true;
     camera.rotationQuaternion = new BABYLON.Quaternion();
+
+    var footsteps = new BABYLON.Sound("Footsteps", "sounds/footsteps.mp3", scene, null, {
+        loop: true,
+        autoplay: false
+    })
+    footsteps.setVolume(0);
+    // footsteps.attachToMesh(camera);
 
     invisMat = new BABYLON.StandardMaterial("invisMat", scene);
     invisMat.alpha = 0;
@@ -214,6 +223,7 @@
 
             if(evnt.code === "ShiftLeft"){
                 camera.speed = 8;
+                footsteps.setPlaybackRate(2);
             }
 
             if(evnt.code === "KeyF" && !crouching){
@@ -226,6 +236,11 @@
                 camera.ellipsoid = new BABYLON.Vector3(0.25,5,0.25);
                 scene.getMeshByName("DoorBlock").checkCollisions = true;
             }
+
+            if(footstepsPaused && evnt.code == "KeyW" || footstepsPaused && evnt.code == "KeyA" || footstepsPaused && evnt.code == "KeyD" || footstepsPaused && evnt.code == "KeyS") {
+                footsteps.play();
+                footstepsPaused = false;
+            }
             
         }
     });
@@ -234,7 +249,12 @@
         if(isLocked){
             if(evnt.code === "ShiftLeft"){
                 camera.speed = 4;
+                footsteps.setPlaybackRate(1);
             }
+
+            // if(evnt.code == "KeyW" || evnt.code == "KeyA" || evnt.code == "KeyD" || evnt.code == "KeyS") {
+            //     footsteps.setVolume(0);
+            // }
         }
     });
 
@@ -261,11 +281,20 @@
 
     var distFromCam = 8;
     
+    var oldCamPosition = camera.position;
+
     scene.registerBeforeRender(function(){
         // translateTransform = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(xAddPos/3000, 0, yAddPos/3000), BABYLON.Matrix.RotationY(camera.rotation.y));
         // camera.cameraDirection.addInPlace(translateTransform);
         // camera.cameraRotation.y += xAddRot/15000*-1;
         // camera.cameraRotation.x += yAddRot/15000*-1;
+
+        if (!camera.position.equals(oldCamPosition)) {
+            footsteps.setVolume(1)
+            oldCamPosition.copyFrom(camera.position);
+        } else {
+            footsteps.setVolume(0)
+        }
 
         if (pickedUp) {
 
