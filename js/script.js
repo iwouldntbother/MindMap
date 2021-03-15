@@ -39,7 +39,8 @@
     var pickedUp;
     var pickedUpCameraDiff = new BABYLON.Vector3();
 
-    footstepsPaused = true;
+    var footsteps;
+    var footstepsPaused = true;
 
     function init(){
 
@@ -104,11 +105,10 @@
     camera.checkCollisions = true;
     camera.rotationQuaternion = new BABYLON.Quaternion();
 
-    var footsteps = new BABYLON.Sound("Footsteps", "sounds/footsteps.mp3", scene, null, {
-        loop: true,
-        autoplay: false
-    })
-    footsteps.setVolume(0);
+    // var footsteps = new BABYLON.Sound("Footsteps", "sounds/footsteps.mp3", scene, null, {
+    //     loop: true
+    // })
+    // footsteps.setVolume(0);
     // footsteps.attachToMesh(camera);
 
     invisMat = new BABYLON.StandardMaterial("invisMat", scene);
@@ -128,11 +128,15 @@
 
         meshes.forEach(function(item){
 
+                if (!item.name.includes("Poster")) {
                     item.renderOutline = true;
                     item.outlineWidth = 0.25;
                     item.outlineColor = BABYLON.Color3.Black();       
                     item.material = whiteMat;         
-
+                } else {
+                    item.checkCollisions = false;
+                }
+                    
                     item.doNotSyncBoundingInfo = true;
                     item.alwaysSelectAsActiveMesh = true
                     item.checkCollisions = true;
@@ -202,6 +206,16 @@
             setTimeout(function(){isLocked = true;},200);
             document.getElementById("menu").style.display = "none";
             document.getElementById("helpText").innerHTML = "Press ESC to bring up the map";
+
+            if (footstepsPaused) {
+                footsteps = new BABYLON.Sound("Footsteps", "sounds/footsteps.mp3", scene, null, {
+                    loop: true,
+                    autoplay: true
+                })
+                footsteps.setVolume(0);
+                footstepsPaused = false
+            }
+
         }
     };
 
@@ -237,10 +251,15 @@
                 scene.getMeshByName("DoorBlock").checkCollisions = true;
             }
 
-            if(footstepsPaused && evnt.code == "KeyW" || footstepsPaused && evnt.code == "KeyA" || footstepsPaused && evnt.code == "KeyD" || footstepsPaused && evnt.code == "KeyS") {
-                footsteps.play();
-                footstepsPaused = false;
-            }
+            // if(footstepsPaused && evnt.code == "KeyW" || footstepsPaused && evnt.code == "KeyA" || footstepsPaused && evnt.code == "KeyD" || footstepsPaused && evnt.code == "KeyS") {
+            //     // footsteps.play();
+            //     var footsteps = new BABYLON.Sound("Footsteps", "sounds/footsteps.mp3", scene, null, {
+            //         loop: true,
+            //         autoplay: true
+            //     })
+            //     footsteps.setVolume(0);
+            //     footstepsPaused = false;
+            // }
             
         }
     });
@@ -289,10 +308,10 @@
         // camera.cameraRotation.y += xAddRot/15000*-1;
         // camera.cameraRotation.x += yAddRot/15000*-1;
 
-        if (!camera.position.equals(oldCamPosition)) {
+        if (!footstepsPaused && !camera.position.equals(oldCamPosition)) {
             footsteps.setVolume(1)
             oldCamPosition.copyFrom(camera.position);
-        } else {
+        } else if (!footstepsPaused) {
             footsteps.setVolume(0)
         }
 
